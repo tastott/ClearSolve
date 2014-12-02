@@ -1,9 +1,18 @@
 ﻿var solvedSeries = {
 };
 
-function setSolvedValue(seriesDimensions, period, value) {
-    var seriesKey = host.GetSeriesKey(seriesDimensions);
+function toHostArray(type, jsArray) {
+    var hostArray = host.newArr(type, jsArray.length);
+    jsArray.forEach(function (item, index) {
+        hostArray[index] = item;
+    });
 
+    return hostArray;
+}
+
+function setSolvedValue(seriesDimensions, period, value) {
+    var seriesKey = clearSolve.GetVariableKey(toHostArray(String, seriesDimensions));
+    
     if (!solvedSeries[seriesKey]) solvedSeries[seriesKey] = {};
 
     solvedSeries[seriesKey][period] = value;
@@ -18,8 +27,12 @@ function getSolvedValue(seriesKey, period) {
 function v() {
     //Last argument is period, all others are series dimensions
     var period = arguments[arguments.length - 1];
-    var seriesDimensions = Array.prototype.slice.call(arguments, 0, arguments.length - 1);
-    var seriesKey = host.GetSeriesKey(seriesDimensions);
+    var seriesDimensions = Array.prototype.slice.call(arguments, 0, arguments.length - 1)
+        .map(function (arg, i) {
+            if (typeof arg == 'string') return arg;
+            else return arg.dimensions[i];
+        });
+    var seriesKey = clearSolve.GetVariableKey(toHostArray(String, seriesDimensions));
 
     var solvedValue = getSolvedValue(seriesKey, period);
     if (solvedValue != null) return solvedValue;
@@ -27,17 +40,22 @@ function v() {
         var equation = equations[seriesKey];
         var n = period;
         var s = seriesKey;
-        var value = eval(equation);
+
+        var context = {
+            dimensions: seriesDimensions,
+            period: period
+        };
+
+        var wrappedEquation = String.Format("var {0} = {1}; {2}",
+            clearSolve.ContextPlaceholder,
+            JSON.stringify(context),
+            equation);
+
+        //Console.WriteLine(wrappedEquation);
+
+        var value = eval(wrappedEquation);
         setSolvedValue(seriesDimensions, value);
         return value;
-    }
-}
-
-function getSeriesValues(periods) {
-    var values = new Array(periods);
-
-    for (var i = 0; i < periods; i++) {
-
     }
 }
 
